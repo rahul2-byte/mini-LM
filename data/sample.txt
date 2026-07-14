@@ -1,0 +1,16 @@
+Language models learn statistical structure from sequences of tokens.
+This small corpus exists only to validate the local data and tokenizer pipeline.
+
+Reproducible experiments require stable inputs, explicit configuration, and
+artifacts that can be inspected after a run.
+
+Streaming processing lets the platform handle data larger than available RAM.
+Checksums make it possible to detect changed or corrupted source files.
+
+Training from scratch starts with random weights and improves them by predicting
+the next token in many examples. A validation split measures generalization on
+documents that were not used for parameter updates during the training run.
+
+The smoke pipeline deliberately uses a tiny model and a tiny local corpus. Its
+purpose is to exercise artifact creation, deterministic configuration, checkpoint
+resume, validation metrics, and generation before expensive data preparation.

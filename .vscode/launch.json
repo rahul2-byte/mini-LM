@@ -1,0 +1,137 @@
+{
+"version": "0.2.0",
+"configurations": [
+    {
+    "name": "Smoke Training",
+    "type": "debugpy",
+    "request": "launch",
+    "module": "app.cli",
+    "args": [
+        "--config",
+        "${workspaceFolder}/configs/data.yaml",
+        "smoke-train",
+        "--output-dir",
+        "${workspaceFolder}/artifacts/debug-smoke",
+        "--sequence-length",
+        "32",
+        "--max-steps",
+        "3"
+    ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
+      }
+    },
+    {
+      "name": "Manifest Sample",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "app.cli",
+      "args": [
+        "--config",
+        "${workspaceFolder}/configs/data.yaml",
+        "manifest",
+        "${workspaceFolder}/data/sample.txt"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
+      }
+    },
+    {
+      "name": "All Tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["-q"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
+      }
+    },
+    {
+      "name": "Ingestion Integration Test",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["-q", "tests/integration/test_ingestion_pipeline.py"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
+      }
+    },
+    {
+      "name": "Raw Ingestion - Local MinIO",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "app.cli",
+      "args": [
+        "--config",
+        "${workspaceFolder}/configs/data.yaml",
+        "ingest-local"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
+      }
+    },
+    {
+      "name": "Raw Ingestion - Source",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "app.cli",
+      "args": [
+        "--config",
+        "${workspaceFolder}/configs/data.yaml",
+        "ingest",
+        "--source-id",
+        "${input:sourceId}"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
+      }
+    },
+    {
+      "name": "Current Test File",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["-q", "${file}"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "sourceId",
+      "type": "promptString",
+      "description": "Configured source ID, for example fineweb_edu"
+    }
+  ]
+}

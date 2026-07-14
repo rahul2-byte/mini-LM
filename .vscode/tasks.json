@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "pytest",
+      "type": "shell",
+      "command": "uv run pytest",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
+        }
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "ruff",
+      "type": "shell",
+      "command": "uv run ruff check src tests",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "smoke-train",
+      "type": "shell",
+      "command": "uv run app --config configs/data.yaml smoke-train --output-dir artifacts/debug-smoke --sequence-length 32 --max-steps 3",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
+        }
+      },
+      "problemMatcher": []
+    }
+  ]
+}

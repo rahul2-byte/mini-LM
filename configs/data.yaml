@@ -1,0 +1,93 @@
+# Paths are resolved from this file's project_root, not from the shell's
+# current working directory. This keeps CLI and VS Code runs reproducible.
+project_root: ..
+# Legacy SQLite smoke manifest; raw ingestion progress uses metadata_path below.
+manifest_path: data/manifests/manifest.db
+# Small local fixture used by tokenizer and training smoke tests.
+sample_path: data/sample.txt
+# One seed controls deterministic splitting and smoke-run sampling.
+seed: 42
+# Documents shorter than this are treated as unusable noise.
+min_document_chars: 20
+# Hard aggregate cap for enabled sources; source limits must fit inside it.
+raw_budget_bytes: 10000000000
+
+ingestion:
+  # DuckDB stores operational metadata, not the raw bytes themselves.
+  metadata_path: data/manifests/raw_ingestion.duckdb
+  # Temporary shard files live here before verified upload to MinIO.
+  staging_directory: data/staging
+  # Bucket is deliberately separate from clean/tokenized artifacts.
+  raw_bucket: mini-llm-raw
+  # Human-readable config uses MB; the loader converts these to bytes.
+  target_shard_size_mb: 256
+  minimum_shard_size_mb: 200
+  maximum_shard_size_mb: 500
+  # Stop safely before the host becomes unusable or staging grows without bound.
+  minimum_free_space_gb: 5
+  maximum_staging_usage_gb: 10
+  # Never count a shard until the remote object has been checked.
+  verify_after_upload: true
+
+# These are hard upper bounds for raw downloads. Adapters must stream and stop
+# before max_bytes; the limits are not estimates of the full source size.
+sources:
+  - id: english_wikipedia
+    source_type: huggingface_dataset
+    dataset_id: wikimedia/wikipedia
+    dataset_config: 20231101.en
+    split: train
+    source_url: https://huggingface.co/datasets/wikimedia/wikipedia
+    license: CC BY-SA-3.0 / GFDL
+    license_url: https://dumps.wikimedia.org/legal.html
+    max_bytes: 2000000000
+    notes: English Wikipedia articles from the Wikimedia dump-backed dataset.
+
+  - id: fineweb_edu
+    source_type: huggingface_dataset
+    dataset_id: HuggingFaceFW/fineweb-edu
+    dataset_config: sample-10BT
+    split: train
+    source_url: https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu
+    license: ODC-By-1.0; Common Crawl terms also apply
+    license_url: https://opendatacommons.org/licenses/by/1-0/
+    max_bytes: 3000000000
+    notes: Stream the sampled configuration and enforce the byte cap locally.
+
+  - id: openwebtext
+    source_type: huggingface_dataset
+    dataset_id: Skylion007/openwebtext
+    split: train
+    source_url: https://huggingface.co/datasets/Skylion007/openwebtext
+    license: CC0-1.0 for dataset packaging; upstream text rights vary
+    license_url: https://creativecommons.org/publicdomain/zero/1.0/
+    max_bytes: 2000000000
+    notes: Preserve upstream provenance; CC0 applies to packaging, not necessarily source text.
+
+  - id: project_gutenberg
+    source_type: external_archive
+    source_url: https://www.gutenberg.org/
+    license: Project Gutenberg License; verify each ebook status
+    license_url: https://www.gutenberg.org/policy/license.html
+    max_bytes: 1000000000
+    notes: Download only eligible works and retain each ebook license/provenance record.
+
+  - id: smollm_corpus
+    source_type: huggingface_dataset
+    dataset_id: HuggingFaceTB/smollm-corpus
+    split: train
+    source_url: https://huggingface.co/datasets/HuggingFaceTB/smollm-corpus
+    license: ODC-By-1.0; component licenses also apply
+    license_url: https://opendatacommons.org/licenses/odc-by/1-0/
+    max_bytes: 1000000000
+    notes: Use only the selected subset and preserve component-level licensing metadata.
+
+  - id: dolma_sample
+    source_type: huggingface_dataset
+    dataset_id: allenai/dolma
+    split: train
+    source_url: https://huggingface.co/datasets/allenai/dolma
+    license: ODC-By-1.0; original-source terms also apply
+    license_url: https://opendatacommons.org/licenses/odc-by/1-0/
+    max_bytes: 1000000000
+    notes: Use a small sample or selected shards, never the full Dolma corpus.

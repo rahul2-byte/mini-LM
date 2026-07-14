@@ -1,0 +1,7 @@
+# Final laptop-scale target. Do not use this before smaller rungs pass smoke and
+# stability checks; model size alone will not fix data or training bugs.
+vocab_size: 32000
+context_length: 1024
+n_layers: 16
+n_heads: 16
+embedding_dim: 1024

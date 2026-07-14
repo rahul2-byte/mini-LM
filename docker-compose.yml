@@ -1,0 +1,22 @@
+services:
+  minio:
+    # Pin this image in production; latest is convenient for local development
+    # but can change behavior between smoke runs.
+    image: ${MINIO_IMAGE:-minio/minio:latest}
+    # Stable container name makes local health checks and debugging predictable.
+    container_name: mini-llm-minio
+    restart: unless-stopped
+    # Port 9000 is the S3 API; 9001 is the browser console.
+    command: server /data --console-address ":9001"
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    environment:
+      # Compose fails before startup when credentials are absent, avoiding an
+      # accidentally unsecured local object store.
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+    volumes:
+      # Bind-mount keeps objects on the host so container recreation does not
+      # delete the local data; change MINIO_DATA_DIR for another disk.
+      - ${MINIO_DATA_DIR:-./.minio/data}:/data

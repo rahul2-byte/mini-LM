@@ -1,0 +1,10 @@
+# First scaling rung: use this configuration to debug the full training path.
+# The vocabulary is intentionally small because this file targets smoke-scale
+# experiments, not final language quality.
+vocab_size: 256
+# Keep the first ladder rung at the initial 512-token context.
+context_length: 512
+# Parameter count is controlled primarily by layers, width, and vocabulary.
+n_layers: 8
+n_heads: 8
+embedding_dim: 512
