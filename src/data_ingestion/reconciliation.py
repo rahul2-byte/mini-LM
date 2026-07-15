@@ -35,6 +35,10 @@ def reconcile_startup(
         if status in _ACTIVE_STATES:
             # No process lock survives a crash, so active records are paused
             # first.  A later command can deliberately resume them.
+            if status == SourceState.RUNNING:
+                metadata.set_source_status(source_id, SourceState.PAUSE_REQUESTED)
+                if run_id:
+                    metadata.set_run_status(run_id, SourceState.PAUSE_REQUESTED)
             metadata.set_source_status(
                 source_id,
                 SourceState.PAUSED,

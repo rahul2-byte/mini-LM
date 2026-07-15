@@ -1,15 +1,13 @@
-# app
+# Local LLM
 
 Local, reproducible decoder-only language-model pretraining platform.
 
-Phase 1 validates the pipeline on a small UTF-8 `.txt` corpus with documents
-separated by blank lines. It covers configuration loading, raw-file manifesting,
-streaming cleaning, tokenizer training from scratch, and token encoding.
+The smoke workflow validates streaming cleaning, tokenizer training, token
+packing, random-initialized GPT training, checkpoint resume, and evaluation.
 
 ```bash
-uv sync --extra dev
+uv sync --extra ingest --extra train
 uv run pytest
-uv run app --config configs/data.yaml manifest data/sample.txt
 ```
 
 ## Package boundaries
@@ -21,13 +19,19 @@ src/
   data_ingestion/  # source adapters, MinIO, DuckDB, sharding, manifests
   tokenization/    # tokenizer training and encoding
   model/           # GPT model definitions
-  training/        # packing, datasets, checkpoints, optimization
+  training/        # packing, checkpoints, optimization
   evaluation/      # loss, perplexity, generation
-  serving/         # local inference API boundary
   common/          # small shared utilities only
-  app/           # application CLI and orchestration entry point
 ```
 
-Data ingestion does not import model, training, evaluation, or serving code.
+Data ingestion does not import model, training, or evaluation code.
 The handoff between modules is through files and MinIO objects rather than
 Python-level imports.
+
+Module commands:
+
+```bash
+uv run train --config configs/data.yaml smoke-train
+uv run data-ingest --config configs/data.yaml ingest-local
+uv run data-ingest --config configs/data.yaml ingest
+```

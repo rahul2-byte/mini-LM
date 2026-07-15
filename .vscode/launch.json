@@ -5,7 +5,7 @@
     "name": "Smoke Training",
     "type": "debugpy",
     "request": "launch",
-    "module": "app.cli",
+    "module": "training.cli",
     "args": [
         "--config",
         "${workspaceFolder}/configs/data.yaml",
@@ -18,25 +18,7 @@
         "3"
     ],
       "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": true,
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}/src",
-        "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
-      }
-    },
-    {
-      "name": "Manifest Sample",
-      "type": "debugpy",
-      "request": "launch",
-      "module": "app.cli",
-      "args": [
-        "--config",
-        "${workspaceFolder}/configs/data.yaml",
-        "manifest",
-        "${workspaceFolder}/data/sample.txt"
-      ],
-      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/bin/python",
       "console": "integratedTerminal",
       "justMyCode": true,
       "env": {
@@ -65,8 +47,9 @@
       "module": "pytest",
       "args": ["-q", "tests/integration/test_ingestion_pipeline.py"],
       "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/bin/python",
       "console": "integratedTerminal",
-      "justMyCode": true,
+      "justMyCode": false,
       "env": {
         "PYTHONPATH": "${workspaceFolder}/src",
         "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
@@ -76,15 +59,16 @@
       "name": "Raw Ingestion - Local MinIO",
       "type": "debugpy",
       "request": "launch",
-      "module": "app.cli",
+      "module": "data_ingestion.cli",
       "args": [
         "--config",
         "${workspaceFolder}/configs/data.yaml",
         "ingest-local"
       ],
       "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/bin/python",
       "console": "integratedTerminal",
-      "justMyCode": true,
+      "justMyCode": false,
       "envFile": "${workspaceFolder}/.env",
       "env": {
         "PYTHONPATH": "${workspaceFolder}/src",
@@ -95,7 +79,7 @@
       "name": "Raw Ingestion - Source",
       "type": "debugpy",
       "request": "launch",
-      "module": "app.cli",
+      "module": "data_ingestion.cli",
       "args": [
         "--config",
         "${workspaceFolder}/configs/data.yaml",
@@ -104,8 +88,29 @@
         "${input:sourceId}"
       ],
       "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/bin/python",
       "console": "integratedTerminal",
-      "justMyCode": true,
+      "justMyCode": false,
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
+      }
+    },
+    {
+      "name": "Raw Ingestion - All Sources",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "data_ingestion.cli",
+      "args": [
+        "--config",
+        "${workspaceFolder}/configs/data.yaml",
+        "ingest"
+      ],
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "console": "integratedTerminal",
+      "justMyCode": false,
       "envFile": "${workspaceFolder}/.env",
       "env": {
         "PYTHONPATH": "${workspaceFolder}/src",

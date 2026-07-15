@@ -1,3 +1,0 @@
-# Shared reproducibility seed consumed by pipeline stages that support seeded
-# sampling or deterministic splits.
-seed: 42

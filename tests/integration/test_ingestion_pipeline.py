@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import Event
 
+import pytest
+
 from data_ingestion.config import DataSourceConfig
 from data_ingestion.adapters import LocalTextAdapter
 from data_ingestion.metadata import DuckDBMetadataStore
@@ -57,6 +59,13 @@ def test_local_adapter_ingests_verified_shards(tmp_path: Path) -> None:
     assert row["completed_shard_count"] == 2
     assert row["verified_bytes"] == len(source_path.read_bytes())
 
+    # A completed source may legitimately be slightly below its byte quota
+    # when the next complete record would exceed that quota.
+    assert (
+        pipeline.run_source(source, LocalTextAdapter(source_path), ingestion_date="2026-07-14")
+        == "COMPLETED"
+    )
+
 
 def test_local_adapter_pauses_after_verified_shard_and_resumes(tmp_path: Path) -> None:
     source_path = tmp_path / "source.txt"
@@ -96,3 +105,69 @@ def test_local_adapter_pauses_after_verified_shard_and_resumes(tmp_path: Path) -
     row = metadata.get_source("local")
     assert row["completed_shard_count"] == 2
     assert row["downloaded_bytes"] == len(source_path.read_bytes())
+
+
+def test_resume_stops_before_exceeding_remaining_quota(tmp_path: Path) -> None:
+    source_path = tmp_path / "source.txt"
+    source_path.write_bytes(b"one\ntwo\nthree\nfour\n")
+    metadata = DuckDBMetadataStore(tmp_path / "metadata.duckdb")
+    pause_event = Event()
+    pipeline = IngestionPipeline(
+        metadata=metadata,
+        object_store=FakeObjectStore(tmp_path / "objects"),
+        staging_directory=tmp_path / "staging",
+        raw_bucket="mini-llm-raw",
+        target_shard_size_bytes=8,
+        maximum_shard_size_bytes=20,
+        pause_event=pause_event,
+    )
+    source = DataSourceConfig(
+        source_id="quota-resume",
+        source_type="filesystem",
+        source_url=str(source_path),
+        license_name="test",
+        license_url="https://example.test/license",
+        max_bytes=15,
+    )
+
+    pause_event.set()
+    pipeline.run_source(source, LocalTextAdapter(source_path), ingestion_date="2026-07-14")
+    pause_event.clear()
+    pipeline.run_source(source, LocalTextAdapter(source_path), ingestion_date="2026-07-14")
+
+    row = metadata.get_source("quota-resume")
+    assert row["verified_bytes"] == 14
+    assert row["verified_bytes"] <= source.max_bytes
+
+
+class EmptyAdapter:
+    def validate_configuration(self) -> None:
+        pass
+
+    def stream_records(self, checkpoint, max_bytes=None):
+        return iter(())
+
+
+def test_pipeline_rejects_empty_source_instead_of_marking_it_completed(tmp_path: Path) -> None:
+    metadata = DuckDBMetadataStore(tmp_path / "metadata.duckdb")
+    pipeline = IngestionPipeline(
+        metadata=metadata,
+        object_store=FakeObjectStore(tmp_path / "objects"),
+        staging_directory=tmp_path / "staging",
+        raw_bucket="mini-llm-raw",
+        target_shard_size_bytes=8,
+        maximum_shard_size_bytes=20,
+    )
+    source = DataSourceConfig(
+        source_id="empty",
+        source_type="test",
+        source_url="https://example.test/empty",
+        license_name="test",
+        license_url="https://example.test/license",
+        max_bytes=100,
+    )
+
+    with pytest.raises(ValueError, match="source produced no records"):
+        pipeline.run_source(source, EmptyAdapter(), ingestion_date="2026-07-14")
+
+    assert metadata.get_source("empty")["status"] == "FAILED"

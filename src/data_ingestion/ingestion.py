@@ -24,7 +24,9 @@ class SourceState(StrEnum):
 _ALLOWED_TRANSITIONS: dict[SourceState, frozenset[SourceState]] = {
     # Keeping this transition graph explicit prevents a restarted process from
     # accidentally changing a completed source back to an active state.
-    SourceState.PENDING: frozenset({SourceState.RUNNING, SourceState.CANCELLED}),
+    SourceState.PENDING: frozenset(
+        {SourceState.RUNNING, SourceState.FAILED, SourceState.CANCELLED}
+    ),
     SourceState.RUNNING: frozenset(
         {
             SourceState.PAUSE_REQUESTED,
@@ -35,12 +37,22 @@ _ALLOWED_TRANSITIONS: dict[SourceState, frozenset[SourceState]] = {
         }
     ),
     SourceState.PAUSE_REQUESTED: frozenset({SourceState.PAUSED, SourceState.FAILED}),
-    SourceState.PAUSED: frozenset({SourceState.RUNNING, SourceState.CANCELLED}),
+    SourceState.PAUSED: frozenset(
+        {SourceState.RUNNING, SourceState.COMPLETED, SourceState.FAILED, SourceState.CANCELLED}
+    ),
     SourceState.RETRYING: frozenset(
-        {SourceState.RUNNING, SourceState.FAILED, SourceState.CANCELLED}
+        {
+            SourceState.RUNNING,
+            SourceState.PAUSED,
+            SourceState.COMPLETED,
+            SourceState.FAILED,
+            SourceState.CANCELLED,
+        }
     ),
     SourceState.COMPLETED: frozenset(),
-    SourceState.FAILED: frozenset({SourceState.RETRYING, SourceState.CANCELLED}),
+    SourceState.FAILED: frozenset(
+        {SourceState.RETRYING, SourceState.COMPLETED, SourceState.CANCELLED}
+    ),
     SourceState.CANCELLED: frozenset(),
 }
 

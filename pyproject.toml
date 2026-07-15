@@ -4,22 +4,16 @@ name = "local-llm"
 version = "0.1.0"
 description = "A local, reproducible decoder-only language-model pretraining platform."
 requires-python = ">=3.11"
-# Keep the base install lightweight. GPU training, serving, tracking, and
-# ingestion-only dependencies are opt-in extras so smoke setup stays portable.
-dependencies = ["duckdb>=1.0", "minio>=7.2", "numpy>=1.26", "pyyaml>=6.0", "tokenizers>=0.20"]
+# YAML is shared by ingestion and the training smoke command.
+dependencies = ["pyyaml>=6.0"]
 
 [project.optional-dependencies]
-ingest = ["datasets>=3.0"]
-train = ["torch>=2.2"]
-serve = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
-tracking = ["mlflow>=2.12"]
-dev = ["pytest>=8.0", "ruff>=0.5", "mypy>=1.10"]
+ingest = ["datasets>=3.0", "duckdb>=1.0", "minio>=7.2", "tqdm>=4.66"]
+train = ["numpy>=1.26", "tokenizers>=0.20", "torch>=2.2"]
 
 [project.scripts]
-# Preferred command after the package rename.
-app = "app.cli:main"
-# Compatibility alias for older local launch commands.
-mini-llm = "app.cli:main"
+data-ingest = "data_ingestion.cli:main"
+train = "training.cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -42,6 +36,6 @@ line-length = 100
 target-version = "py311"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.13"
 strict = true
 ignore_missing_imports = true

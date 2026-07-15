@@ -1,1 +1,1 @@
-"""Shared configuration, logging, hashing, and path utilities."""
+"""Shared logging and terminal progress utilities."""

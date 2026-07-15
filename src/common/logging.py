@@ -1,33 +1,40 @@
-"""Structured, dependency-free logging setup."""
+"""Human-readable logging setup for local pipeline runs."""
 
-import json
 import logging
 import sys
-from typing import Any
+from datetime import datetime
 
 
-class JsonFormatter(logging.Formatter):
-    """Serialize log records as stable JSON objects for machine ingestion."""
+_STANDARD_RECORD_FIELDS = set(logging.LogRecord("", 0, "", 0, "", (), None).__dict__)
+
+
+class HumanFormatter(logging.Formatter):
+    """Format application events as concise lines for a local terminal."""
 
     def format(self, record: logging.LogRecord) -> str:
-        """Convert one log record into a compact, newline-safe JSON string."""
-        payload: dict[str, Any] = {
-            "level": record.levelname,
-            "logger": record.name,
-            "message": record.getMessage(),
+        """Render the event and useful source/run/shard context."""
+        fields = {
+            key: value
+            for key, value in record.__dict__.items()
+            if key not in _STANDARD_RECORD_FIELDS and key != "event" and not key.startswith("_")
         }
+        context = " ".join(f"{key}={value}" for key, value in sorted(fields.items()))
+        message = (
+            f"{datetime.now().strftime('%H:%M:%S')} {record.levelname:<7} {record.getMessage()}"
+        )
+        if context:
+            message += f" {context}"
         if record.exc_info:
-            payload["exception"] = self.formatException(record.exc_info)
-        return json.dumps(payload, sort_keys=True)
+            message += f"\n{self.formatException(record.exc_info)}"
+        return message
 
 
 def configure_logging(level: int = logging.INFO) -> None:
-    """Install the application-wide stderr handler used by CLI pipelines.
+    """Install the application-wide human-readable stderr handler.
 
     ``force=True`` intentionally replaces handlers installed by a caller or
-    test runner.  Without that reset, repeated smoke runs can print each event
-    multiple times and make operational logs misleading.
+    test runner so repeated smoke runs do not duplicate every event.
     """
     handler = logging.StreamHandler(sys.stderr)
-    handler.setFormatter(JsonFormatter())
+    handler.setFormatter(HumanFormatter())
     logging.basicConfig(level=level, handlers=[handler], force=True)

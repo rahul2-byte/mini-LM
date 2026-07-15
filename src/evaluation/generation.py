@@ -1,5 +1,7 @@
 """Tokenizer-backed deterministic text generation."""
 
+from typing import cast
+
 import torch
 
 from model.gpt import GPTModel
@@ -17,4 +19,4 @@ def generate_text(
         [encoding.ids], dtype=torch.long, device=next(model.parameters()).device
     )
     generated = model.generate(input_ids, max_new_tokens=max_new_tokens)
-    return tokenizer.decode(generated[0].tolist())  # type: ignore[attr-defined]
+    return cast(str, tokenizer.decode(generated[0].tolist()))  # type: ignore[attr-defined]

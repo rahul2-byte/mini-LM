@@ -1,9 +1,0 @@
-# Stability rung: enough capacity to expose optimization problems without the
-# memory cost of the final model.
-vocab_size: 32000
-# 512 keeps activation memory manageable on the 6 GB GPU.
-context_length: 512
-n_layers: 8
-n_heads: 8
-# Width must be divisible by n_heads so attention heads have equal dimensions.
-embedding_dim: 512

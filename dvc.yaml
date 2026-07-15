@@ -1,4 +1,0 @@
-# Pipeline stages are intentionally empty until the first real data workflow is
-# promoted. Keeping the file now establishes the versioning entry point without
-# pretending that generated artifacts are tracked yet.
-stages: {}

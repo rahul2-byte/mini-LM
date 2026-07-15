@@ -1,6 +1,7 @@
 """Validation loss and perplexity evaluation."""
 
 import math
+from typing import Any
 
 import torch
 from torch import nn
@@ -8,7 +9,9 @@ from torch.utils.data import DataLoader
 
 
 @torch.no_grad()
-def evaluate(model: nn.Module, data_loader: DataLoader, device: torch.device) -> dict[str, float]:
+def evaluate(
+    model: nn.Module, data_loader: DataLoader[Any], device: torch.device
+) -> dict[str, float]:
     """Compute token-weighted validation loss and its exponential perplexity."""
     was_training = model.training
     model.eval()

@@ -2,16 +2,24 @@
 
 from datetime import UTC, datetime
 from contextlib import contextmanager
+import fcntl
+import os
 from pathlib import Path
 from typing import Any, Iterator
 from uuid import uuid4
 
 import duckdb
 
+from data_ingestion.ingestion import SourceState, transition_state
+
 
 def _now() -> str:
     """Return an explicit UTC timestamp for reproducible audit records."""
     return datetime.now(UTC).isoformat()
+
+
+class MetadataLockError(RuntimeError):
+    """Raised when another ingestion process owns the metadata database."""
 
 
 class DuckDBMetadataStore:
@@ -26,12 +34,44 @@ class DuckDBMetadataStore:
         """Open/create the metadata database and apply the initial schema."""
         self.database_path = Path(database_path)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
-        self._connection = duckdb.connect(str(self.database_path))
-        self._create_schema()
+        self.lock_path = self.database_path.with_suffix(self.database_path.suffix + ".lock")
+        self._lock_handle = self.lock_path.open("a+")
+        try:
+            # The OS releases this lock if the process crashes, so it cannot
+            # become a stale PID file that blocks future ingestion forever.
+            fcntl.flock(self._lock_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self._lock_handle.seek(0)
+            self._lock_handle.truncate()
+            self._lock_handle.write(str(os.getpid()))
+            self._lock_handle.flush()
+            self._connection = duckdb.connect(str(self.database_path))
+            self._create_schema()
+        except BlockingIOError as error:
+            owner = self.lock_path.read_text(encoding="utf-8").strip() or "unknown"
+            self._lock_handle.close()
+            raise MetadataLockError(
+                f"ingestion is already running (lock owner PID: {owner}); "
+                "wait for it to finish or stop it safely"
+            ) from error
+        except duckdb.IOException as error:
+            fcntl.flock(self._lock_handle.fileno(), fcntl.LOCK_UN)
+            self._lock_handle.close()
+            if "lock" in str(error).lower():
+                raise MetadataLockError(
+                    "the DuckDB metadata file is locked by another process; "
+                    "stop the existing ingestion run safely and retry"
+                ) from error
+            raise
+        except Exception:
+            fcntl.flock(self._lock_handle.fileno(), fcntl.LOCK_UN)
+            self._lock_handle.close()
+            raise
 
     def close(self) -> None:
         """Release the DuckDB connection held by this repository instance."""
         self._connection.close()
+        fcntl.flock(self._lock_handle.fileno(), fcntl.LOCK_UN)
+        self._lock_handle.close()
 
     @contextmanager
     def _transaction(self) -> Iterator[None]:
@@ -55,6 +95,11 @@ class DuckDBMetadataStore:
                 source_name VARCHAR NOT NULL UNIQUE,
                 source_type VARCHAR NOT NULL,
                 source_uri VARCHAR,
+                license_name VARCHAR,
+                license_url VARCHAR,
+                source_notes VARCHAR,
+                dataset_id VARCHAR,
+                dataset_config VARCHAR,
                 configured_quota_bytes UBIGINT,
                 status VARCHAR NOT NULL,
                 current_version_id VARCHAR,
@@ -131,6 +176,12 @@ class DuckDBMetadataStore:
                 event_data JSON,
                 created_at TIMESTAMP NOT NULL
             );
+
+            ALTER TABLE data_sources ADD COLUMN IF NOT EXISTS license_name VARCHAR;
+            ALTER TABLE data_sources ADD COLUMN IF NOT EXISTS license_url VARCHAR;
+            ALTER TABLE data_sources ADD COLUMN IF NOT EXISTS source_notes VARCHAR;
+            ALTER TABLE data_sources ADD COLUMN IF NOT EXISTS dataset_id VARCHAR;
+            ALTER TABLE data_sources ADD COLUMN IF NOT EXISTS dataset_config VARCHAR;
             """
         )
 
@@ -142,6 +193,11 @@ class DuckDBMetadataStore:
         source_uri: str | None,
         configured_quota_bytes: int,
         checkpoint_type: str | None = None,
+        license_name: str = "",
+        license_url: str = "",
+        source_notes: str = "",
+        dataset_id: str | None = None,
+        dataset_config: str | None = None,
     ) -> None:
         """Register or refresh source configuration without resetting progress."""
         now = _now()
@@ -149,12 +205,18 @@ class DuckDBMetadataStore:
             """
             INSERT INTO data_sources (
                 source_id, source_name, source_type, source_uri,
+                license_name, license_url, source_notes, dataset_id, dataset_config,
                 configured_quota_bytes, status, checkpoint_type, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?)
             ON CONFLICT (source_id) DO UPDATE SET
                 source_name = excluded.source_name,
                 source_type = excluded.source_type,
                 source_uri = excluded.source_uri,
+                license_name = excluded.license_name,
+                license_url = excluded.license_url,
+                source_notes = excluded.source_notes,
+                dataset_id = excluded.dataset_id,
+                dataset_config = excluded.dataset_config,
                 configured_quota_bytes = excluded.configured_quota_bytes,
                 checkpoint_type = excluded.checkpoint_type,
                 updated_at = excluded.updated_at
@@ -164,6 +226,11 @@ class DuckDBMetadataStore:
                 source_name,
                 source_type,
                 source_uri,
+                license_name,
+                license_url,
+                source_notes,
+                dataset_id,
+                dataset_config,
                 configured_quota_bytes,
                 checkpoint_type,
                 now,
@@ -282,6 +349,7 @@ class DuckDBMetadataStore:
         error: str | None = None,
     ) -> None:
         """Update source state while retaining its last known checkpoint."""
+        status = self._validated_status("data_sources", "source_id", source_id, status)
         now = _now()
         self._connection.execute(
             """
@@ -297,6 +365,7 @@ class DuckDBMetadataStore:
 
     def set_run_status(self, run_id: str, status: str, error_message: str | None = None) -> None:
         """Update run lifecycle timestamps without rewriting run history."""
+        status = self._validated_status("download_runs", "run_id", run_id, status)
         now = _now()
         self._connection.execute(
             """
@@ -310,12 +379,25 @@ class DuckDBMetadataStore:
             [status, error_message, status, now, status, now, status, now, run_id],
         )
 
+    def _validated_status(self, table: str, key: str, value: str, status: str) -> str:
+        """Validate every persisted lifecycle transition at one boundary."""
+        row = self._connection.execute(
+            f"SELECT status FROM {table} WHERE {key} = ?", [value]
+        ).fetchone()
+        if row is None:
+            raise KeyError(value)
+        current = SourceState(row[0])
+        target = SourceState(status)
+        if current != target:
+            transition_state(current, target)
+        return str(target)
+
     def source_quota_reached(self, source_id: str) -> bool:
         """Return whether verified source bytes satisfy the configured quota."""
         row = self._connection.execute(
             """
             SELECT configured_quota_bytes IS NOT NULL
-               AND downloaded_bytes >= configured_quota_bytes
+               AND verified_bytes >= configured_quota_bytes
             FROM data_sources WHERE source_id = ?
             """,
             [source_id],

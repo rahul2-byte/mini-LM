@@ -5,7 +5,7 @@ import random
 import tempfile
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -26,7 +26,7 @@ class CheckpointManager:
     @staticmethod
     def _config_dict(config: object) -> dict[str, Any]:
         """Convert a dataclass config to the serializable compatibility record."""
-        if not is_dataclass(config):
+        if not is_dataclass(config) or isinstance(config, type):
             raise TypeError("checkpoint config must be a dataclass")
         return asdict(config)
 
@@ -88,6 +88,8 @@ class CheckpointManager:
             payload = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
         except Exception as exc:
             raise ValueError(f"could not load checkpoint: {checkpoint_path}") from exc
+        if not isinstance(payload, dict):
+            raise ValueError(f"checkpoint payload is invalid: {checkpoint_path}")
         if expected_config is not None and payload.get("config") != self._config_dict(
             expected_config
         ):
@@ -104,4 +106,4 @@ class CheckpointManager:
                 torch.cuda.set_rng_state_all(payload["cuda_rng"])
         except (KeyError, RuntimeError, TypeError, ValueError) as exc:
             raise ValueError(f"checkpoint state is invalid: {checkpoint_path}") from exc
-        return payload
+        return cast(dict[str, Any], payload)

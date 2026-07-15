@@ -19,10 +19,20 @@ def write_run_manifest(
     complete but contains truncated JSON.
     """
     run = metadata.get_run(run_id)
+    source = metadata.get_source(run["source_id"])
     shards = metadata.list_run_shards(run_id)
     payload: dict[str, Any] = {
         "run_id": run_id,
         "source_id": run["source_id"],
+        "source": {
+            "source_type": source["source_type"],
+            "source_uri": source["source_uri"],
+            "license_name": source["license_name"],
+            "license_url": source["license_url"],
+            "notes": source["source_notes"],
+            "dataset_id": source["dataset_id"],
+            "dataset_config": source["dataset_config"],
+        },
         "version_id": run["version_id"],
         "status": run["status"],
         "started_at": str(run["started_at"]),

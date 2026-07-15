@@ -3,7 +3,8 @@
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from typing import BinaryIO, Iterable
+from collections.abc import Callable, Iterable
+from typing import Any, BinaryIO
 
 from data_ingestion.adapters import SourceRecord
 
@@ -17,14 +18,18 @@ class LocalShard:
     size_bytes: int
     checksum: str
     record_count: int
-    checkpoint: dict[str, int]
+    checkpoint: dict[str, Any]
 
 
 class ShardBuilder:
     """Build bounded shards without splitting individual source records."""
 
     def __init__(
-        self, staging_directory: str | Path, target_size_bytes: int, maximum_size_bytes: int
+        self,
+        staging_directory: str | Path,
+        target_size_bytes: int,
+        maximum_size_bytes: int,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> None:
         """Configure a builder with byte thresholds supplied by YAML."""
         if target_size_bytes <= 0 or maximum_size_bytes < target_size_bytes:
@@ -32,6 +37,7 @@ class ShardBuilder:
         self.staging_directory = Path(staging_directory)
         self.target_size_bytes = target_size_bytes
         self.maximum_size_bytes = maximum_size_bytes
+        self.progress_callback = progress_callback
 
     def build(
         self, records: Iterable[SourceRecord], start_sequence: int = 1
@@ -49,8 +55,9 @@ class ShardBuilder:
         digest = sha256()
         size = 0
         count = 0
-        checkpoint: dict[str, int] = {}
+        checkpoint: dict[str, Any] = {}
         path: Path | None = None
+        reported_size = 0
         try:
             for record in records:
                 payload = record.payload + b"\n"
@@ -64,14 +71,21 @@ class ShardBuilder:
                     digest = sha256()
                     size = 0
                     count = 0
+                    reported_size = 0
                 handle.write(payload)
                 digest.update(payload)
                 size += len(payload)
                 count += 1
                 checkpoint = record.checkpoint
+                if self.progress_callback and size - reported_size >= 1024 * 1024:
+                    self.progress_callback(sequence, size)
+                    reported_size = size
                 if size >= self.target_size_bytes:
                     # The threshold is checked after a complete record; this
                     # may make a shard larger than target but never splits data.
+                    if self.progress_callback and reported_size != size:
+                        self.progress_callback(sequence, size)
+                    assert path is not None
                     yield self._finalize(handle, path, sequence, size, digest, count, checkpoint)
                     handle = None
                     path = None
@@ -90,7 +104,7 @@ class ShardBuilder:
         size: int,
         digest: object,
         count: int,
-        checkpoint: dict[str, int],
+        checkpoint: dict[str, Any],
     ) -> LocalShard:
         """Close and rename a partial file before exposing it to upload code."""
         handle.flush()

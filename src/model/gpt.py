@@ -3,6 +3,7 @@
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
+from typing import cast
 
 from model.config import GPTConfig
 
@@ -30,7 +31,7 @@ class TransformerBlock(nn.Module):
         normalized = self.norm_attention(hidden)
         attended, _ = self.attention(normalized, normalized, normalized, attn_mask=causal_mask)
         hidden = hidden + attended
-        return hidden + self.mlp(self.norm_mlp(hidden))
+        return hidden + cast(Tensor, self.mlp(self.norm_mlp(hidden)))
 
 
 class GPTModel(nn.Module):

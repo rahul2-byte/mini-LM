@@ -42,9 +42,14 @@ class MinioObjectStore:
         # still a cheap mandatory sanity check before metadata is committed.
         if metadata.size != Path(local_path).stat().st_size:
             raise IOError(f"MinIO size mismatch for {bucket}/{object_key}")
-        return ObjectMetadata(bucket, object_key, metadata.size, result.etag)
+        etag = result.etag or metadata.etag
+        if not etag:
+            raise IOError(f"MinIO returned no ETag for {bucket}/{object_key}")
+        return ObjectMetadata(bucket, object_key, metadata.size, etag)
 
     def stat(self, bucket: str, object_key: str) -> ObjectMetadata:
         """Return remote metadata without downloading the object."""
         result: Any = self.client.stat_object(bucket, object_key)
+        if not result.etag:
+            raise IOError(f"MinIO returned no ETag for {bucket}/{object_key}")
         return ObjectMetadata(bucket, object_key, result.size, result.etag)

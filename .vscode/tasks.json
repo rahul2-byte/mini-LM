@@ -29,7 +29,31 @@
     {
       "label": "smoke-train",
       "type": "shell",
-      "command": "uv run app --config configs/data.yaml smoke-train --output-dir artifacts/debug-smoke --sequence-length 32 --max-steps 3",
+      "command": "uv run train --config configs/data.yaml smoke-train --output-dir artifacts/debug-smoke --sequence-length 32 --max-steps 3",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "ingest-local",
+      "type": "shell",
+      "command": "uv run data-ingest --config configs/data.yaml ingest-local",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "UV_CACHE_DIR": "/tmp/mini-llm-uv-cache"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "ingest-all-sources",
+      "type": "shell",
+      "command": "uv run data-ingest --config configs/data.yaml ingest",
       "options": {
         "cwd": "${workspaceFolder}",
         "env": {

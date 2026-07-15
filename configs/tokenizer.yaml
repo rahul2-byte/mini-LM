@@ -1,8 +1,0 @@
-# Small smoke vocabulary. Production experiments should move to 16k then 32k.
-vocab_size: 256
-# Include a token only after it appears at least this many times in training text.
-min_frequency: 1
-# Reserved IDs make padding and future sequence-boundary handling explicit.
-special_tokens: ["<pad>", "<unk>", "<bos>", "<eos>"]
-# Tokenizer artifacts are versioned separately from model checkpoints.
-output_path: artifacts/tokenizers/smoke-tokenizer.json

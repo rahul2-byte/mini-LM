@@ -36,11 +36,9 @@ class IngestionConfig:
     staging_directory: Path
     raw_bucket: str = "mini-llm-raw"
     target_shard_size_bytes: int = 256 * 1024 * 1024
-    minimum_shard_size_bytes: int = 200 * 1024 * 1024
     maximum_shard_size_bytes: int = 500 * 1024 * 1024
     minimum_free_space_bytes: int = 20 * 1024 * 1024 * 1024
     maximum_staging_usage_bytes: int = 100 * 1024 * 1024 * 1024
-    verify_after_upload: bool = True
 
 
 @dataclass(frozen=True)
@@ -48,7 +46,6 @@ class DataConfig:
     """Resolved data settings shared by smoke runs and production ingestion."""
 
     project_root: Path
-    manifest_path: Path
     sample_path: Path
     seed: int = 42
     min_document_chars: int = 20
@@ -82,10 +79,7 @@ def load_data_config(path: str | Path) -> DataConfig:
     root = Path(raw.get("project_root", "."))
     if not root.is_absolute():
         root = (config_path.parent / root).resolve()
-    manifest = Path(raw.get("manifest_path", "data/manifests/manifest.db"))
     sample = Path(raw.get("sample_path", "data/sample.txt"))
-    if not manifest.is_absolute():
-        manifest = root / manifest
     if not sample.is_absolute():
         sample = root / sample
     minimum = int(raw.get("min_document_chars", 20))
@@ -106,10 +100,9 @@ def load_data_config(path: str | Path) -> DataConfig:
     # Keep sizes in MB in human-edited YAML and convert once at the boundary to
     # bytes, which avoids repeated unit conversions in the hot ingestion path.
     target_mb = int(raw_ingestion.get("target_shard_size_mb", 256))
-    minimum_mb = int(raw_ingestion.get("minimum_shard_size_mb", 200))
     maximum_mb = int(raw_ingestion.get("maximum_shard_size_mb", 500))
-    if not 0 < minimum_mb <= target_mb <= maximum_mb:
-        raise ConfigError("shard size bounds must satisfy 0 < minimum <= target <= maximum")
+    if not 0 < target_mb <= maximum_mb:
+        raise ConfigError("shard size bounds must satisfy 0 < target <= maximum")
     minimum_free_gb = int(raw_ingestion.get("minimum_free_space_gb", 20))
     maximum_staging_gb = int(raw_ingestion.get("maximum_staging_usage_gb", 100))
     if minimum_free_gb <= 0 or maximum_staging_gb <= 0:
@@ -119,11 +112,9 @@ def load_data_config(path: str | Path) -> DataConfig:
         staging_directory=staging_directory,
         raw_bucket=str(raw_ingestion.get("raw_bucket", "mini-llm-raw")),
         target_shard_size_bytes=target_mb * 1024 * 1024,
-        minimum_shard_size_bytes=minimum_mb * 1024 * 1024,
         maximum_shard_size_bytes=maximum_mb * 1024 * 1024,
         minimum_free_space_bytes=minimum_free_gb * 1024 * 1024 * 1024,
         maximum_staging_usage_bytes=maximum_staging_gb * 1024 * 1024 * 1024,
-        verify_after_upload=bool(raw_ingestion.get("verify_after_upload", True)),
     )
 
     raw_budget = int(raw.get("raw_budget_bytes", 10_000_000_000))
@@ -179,7 +170,6 @@ def load_data_config(path: str | Path) -> DataConfig:
         )
     return DataConfig(
         root,
-        manifest,
         sample,
         int(raw.get("seed", 42)),
         minimum,

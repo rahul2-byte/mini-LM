@@ -23,7 +23,7 @@ def train_bpe(
     """
     tokenizer = Tokenizer(BPE(unk_token="<unk>"))
     tokenizer.pre_tokenizer = Whitespace()
-    trainer = BpeTrainer(
+    trainer = BpeTrainer(  # type: ignore[no-untyped-call]
         vocab_size=vocab_size,
         min_frequency=min_frequency,
         special_tokens=special_tokens or ["<pad>", "<unk>", "<bos>", "<eos>"],

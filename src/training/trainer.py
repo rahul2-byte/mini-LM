@@ -74,7 +74,7 @@ class Trainer:
         return torch.autocast(device_type="cuda", dtype=dtype)
 
     @staticmethod
-    def _next_batch(loader: DataLoader, iterator: Iterator[Any]) -> tuple[Any, Iterator[Any]]:
+    def _next_batch(loader: DataLoader[Any], iterator: Iterator[Any]) -> tuple[Any, Iterator[Any]]:
         """Fetch a batch and restart the iterator when an epoch is exhausted."""
         try:
             batch = next(iterator)
@@ -84,7 +84,7 @@ class Trainer:
         return batch, iterator
 
     def train(
-        self, train_loader: DataLoader, val_loader: DataLoader | None = None
+        self, train_loader: DataLoader[Any], val_loader: DataLoader[Any] | None = None
     ) -> dict[str, float]:
         """Train for configured optimizer steps and optionally evaluate/checkpoint.
 
@@ -93,7 +93,7 @@ class Trainer:
         scale independent of the accumulation setting.
         """
         self.model.train()
-        iterator = iter(train_loader)
+        iterator: Iterator[Any] = iter(train_loader)
         latest_loss = float("nan")
         while self.global_step < self.config.max_steps:
             self.optimizer.zero_grad(set_to_none=True)

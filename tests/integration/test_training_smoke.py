@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from app.cli import run_smoke
+from training.cli import run_smoke
 
 
 def test_local_training_smoke_creates_artifacts(tmp_path: Path) -> None:
